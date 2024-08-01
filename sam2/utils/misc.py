@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import tqdm
-
+import io
 
 def get_sdpa_settings():
     if torch.cuda.is_available():
