@@ -7,6 +7,9 @@
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
+import torch
+import os
+
 # Package metadata
 NAME = "SAM 2"
 VERSION = "1.0"
@@ -38,6 +41,20 @@ EXTRA_PACKAGES = {
 }
 
 
+# def get_extensions():
+#     srcs = ["sam2/csrc/connected_components.cu"]
+#     compile_args = {
+#         "cxx": [],
+#         "nvcc": [
+#             "-DCUDA_HAS_FP16=1",
+#             "-D__CUDA_NO_HALF_OPERATORS__",
+#             "-D__CUDA_NO_HALF_CONVERSIONS__",
+#             "-D__CUDA_NO_HALF2_OPERATORS__",
+#         ],
+#     }
+#     ext_modules = [CUDAExtension("sam2._C", srcs, extra_compile_args=compile_args)]
+#     return ext_modules
+
 def get_extensions():
     srcs = ["sam2/csrc/connected_components.cu"]
     compile_args = {
@@ -49,7 +66,30 @@ def get_extensions():
             "-D__CUDA_NO_HALF2_OPERATORS__",
         ],
     }
-    ext_modules = [CUDAExtension("sam2._C", srcs, extra_compile_args=compile_args)]
+    
+    # Set CUDA_HOME explicitly
+    torch.utils.cpp_extension.CUDA_HOME = "/usr/local/cuda"
+    
+    # Set CUDA architecture flags
+    if os.environ.get('TORCH_CUDA_ARCH_LIST'):
+        arch_flags = os.environ['TORCH_CUDA_ARCH_LIST'].split(';')
+        compile_args['nvcc'].extend([f'-gencode=arch=compute_{arch},code=sm_{arch}' for arch in arch_flags])
+    else:
+        compile_args['nvcc'].extend(['-gencode=arch=compute_70,code=sm_70',
+                                     '-gencode=arch=compute_75,code=sm_75',
+                                     '-gencode=arch=compute_80,code=sm_80',
+                                     '-gencode=arch=compute_86,code=sm_86'])
+
+    ext_modules = [
+        CUDAExtension(
+            "sam2._C",
+            srcs,
+            extra_compile_args=compile_args,
+            extra_link_args=["-lcudart"],
+            include_dirs=[torch.utils.cpp_extension.CUDA_HOME + "/include"],
+            library_dirs=[torch.utils.cpp_extension.CUDA_HOME + "/lib64"],
+        )
+    ]
     return ext_modules
 
 
