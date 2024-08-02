@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import tqdm
-import io
+
 
 def get_sdpa_settings():
     if torch.cuda.is_available():
@@ -99,24 +99,6 @@ def _load_img_as_tensor(img_path, image_size):
     img = torch.from_numpy(img_np).permute(2, 0, 1)
     video_width, video_height = img_pil.size  # the original video size
     return img, video_height, video_width
-
-# def _load_img_as_tensor(img_source, image_size):
-#     if isinstance(img_source, str):
-#         img_pil = Image.open(img_source)
-#     elif isinstance(img_source, io.BytesIO):
-#         img_source.seek(0)
-#         img_pil = Image.open(img_source)
-#     else:
-#         raise ValueError("Unsupported image source type")
-
-#     img_np = np.array(img_pil.convert("RGB").resize((image_size, image_size)))
-#     if img_np.dtype == np.uint8:
-#         img_np = img_np / 255.0
-#     else:
-#         raise RuntimeError(f"Unknown image dtype: {img_np.dtype}")
-#     img = torch.from_numpy(img_np).permute(2, 0, 1)
-#     video_width, video_height = img_pil.size
-#     return img, video_height, video_width
 
 
 class AsyncVideoFrameLoader:
@@ -229,66 +211,6 @@ def load_video_frames(
     images -= img_mean
     images /= img_std
     return images, video_height, video_width
-
-
-# def load_video_frames(
-#     video_path,
-#     image_size,
-#     offload_video_to_cpu,
-#     img_mean=(0.485, 0.456, 0.406),
-#     img_std=(0.229, 0.224, 0.225),
-#     async_loading_frames=False,
-# ):
-#     """
-#     Load the video frames from a directory of JPEG files or a single JPEG file in memory.
-#     """
-#     img_mean = torch.tensor(img_mean, dtype=torch.float32)[:, None, None]
-#     img_std = torch.tensor(img_std, dtype=torch.float32)[:, None, None]
-
-#     if isinstance(video_path, str) and os.path.isdir(video_path):
-#         # Existing code for loading from a directory
-#         jpg_folder = video_path
-#         frame_names = [
-#             p
-#             for p in os.listdir(jpg_folder)
-#             if os.path.splitext(p)[-1].lower() in [".jpg", ".jpeg"]
-#         ]
-#         frame_names.sort(key=lambda p: int(os.path.splitext(p)[0]))
-#         num_frames = len(frame_names)
-#         if num_frames == 0:
-#             raise RuntimeError(f"no images found in {jpg_folder}")
-#         img_paths = [os.path.join(jpg_folder, frame_name) for frame_name in frame_names]
-
-#         if async_loading_frames:
-#             lazy_images = AsyncVideoFrameLoader(
-#                 img_paths, image_size, offload_video_to_cpu, img_mean, img_std
-#             )
-#             return lazy_images, lazy_images.video_height, lazy_images.video_width
-
-#         images = torch.zeros(num_frames, 3, image_size, image_size, dtype=torch.float32)
-#         for n, img_path in enumerate(tqdm(img_paths, desc="frame loading (JPEG)")):
-#             images[n], video_height, video_width = _load_img_as_tensor(img_path, image_size)
-
-#     elif isinstance(video_path, io.BytesIO):
-#         # New code for loading a single JPEG file from memory
-#         img, video_height, video_width = _load_img_as_tensor(video_path, image_size)
-#         images = img.unsqueeze(0)  # Add batch dimension
-#         num_frames = 1
-
-#     else:
-#         raise NotImplementedError("Only JPEG frames or a single JPEG file in memory are supported at this moment")
-
-#     if not offload_video_to_cpu:
-#         images = images.cuda()
-#         img_mean = img_mean.cuda()
-#         img_std = img_std.cuda()
-    
-#     # normalize by mean and std
-#     images -= img_mean
-#     images /= img_std
-    
-#     return images, video_height, video_width
-
 
 
 def fill_holes_in_mask_scores(mask, max_area):
